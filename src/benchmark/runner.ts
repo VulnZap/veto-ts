@@ -113,6 +113,17 @@ export async function runBenchmark(options: BenchmarkRunnerOptions): Promise<Ben
       };
     } catch (error) {
       errorCount++;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Log first few errors for debugging
+      if (errorCount <= 3) {
+        logger.error(`Evaluation error (${errorCount}):`, {
+          tool: sample.tool,
+          error: errorMessage,
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+      }
+      
       result = {
         sample,
         actualDecision: 'pass', // Default on error
@@ -121,7 +132,7 @@ export async function runBenchmark(options: BenchmarkRunnerOptions): Promise<Ben
         reasoning: '',
         correct: false,
         latencyMs: Date.now() - sampleStart,
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
       };
     }
 

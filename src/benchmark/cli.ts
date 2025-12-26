@@ -28,12 +28,21 @@ import {
 } from './runner.js';
 import type { BenchmarkConfig } from './types.js';
 import { DEFAULT_BENCHMARK_CONFIG } from './types.js';
+import { createLogger, type Logger } from '../utils/logger.js';
+import { KernelClient } from '../kernel/client.js';
+import type { KernelConfig } from '../kernel/types.js';
 
 /**
  * Parse command line arguments.
  */
-function parseArgs(args: string[]): Partial<BenchmarkConfig> & { help?: boolean } {
-  const config: Partial<BenchmarkConfig> & { help?: boolean } = {};
+interface CliOptions extends Partial<BenchmarkConfig> {
+  help?: boolean;
+  verbose?: boolean;
+  testConnection?: boolean;
+}
+
+function parseArgs(args: string[]): CliOptions {
+  const config: CliOptions = {};
   
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -88,6 +97,13 @@ function parseArgs(args: string[]): Partial<BenchmarkConfig> & { help?: boolean 
       case '--include-results':
         config.includeResults = true;
         break;
+      case '--verbose':
+      case '-v':
+        config.verbose = true;
+        break;
+      case '--test-connection':
+        config.testConnection = true;
+        break;
     }
   }
 
@@ -131,6 +147,10 @@ Options:
                            Default: ${DEFAULT_BENCHMARK_CONFIG.kernel.baseUrl}
 
   --include-results        Include all individual results in JSON output
+
+  --verbose, -v            Enable debug logging
+
+  --test-connection        Test kernel connection before running
 
   --help, -h               Show this help message
 
@@ -188,10 +208,41 @@ async function main(): Promise<void> {
   console.log(`Shuffle:    ${config.shuffle}`);
   console.log('');
 
+  // Create logger with appropriate level
+  const logger: Logger = createLogger(userConfig.verbose ? 'debug' : 'info');
+
+  // Test connection if requested
+  if (userConfig.testConnection) {
+    console.log('Testing kernel connection...');
+    const kernelConfig: KernelConfig = config.kernel;
+    const kernelClient = new KernelClient({ config: kernelConfig, logger });
+    
+    try {
+      const healthy = await kernelClient.healthCheck();
+      if (healthy) {
+        console.log('✅ Kernel connection successful');
+      } else {
+        console.log('❌ Kernel health check failed');
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error('❌ Kernel connection error:', error instanceof Error ? error.message : error);
+      if (error instanceof Error && error.cause) {
+        console.error('   Cause:', (error.cause as Error).message);
+      }
+      process.exit(1);
+    }
+    
+    if (!config.datasetPath) {
+      process.exit(0);
+    }
+  }
+
   try {
     const report = await runBenchmark({
       config,
       onProgress: createProgressLogger(),
+      logger,
     });
 
     // Print console report
