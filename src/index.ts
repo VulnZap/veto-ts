@@ -74,6 +74,15 @@ export type {
   ValidationAPIResponse,
 } from './rules/types.js';
 
+// Custom provider types
+export type {
+  CustomConfig,
+  CustomProvider,
+  CustomResponse,
+  CustomToolCall,
+} from './custom/types.js';
+export { CustomClient } from './custom/client.js';
+
 // Interception result
 export type { InterceptionResult } from './core/interceptor.js';
 export type { HistoryStats } from './core/history.js';

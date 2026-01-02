@@ -152,6 +152,9 @@ export class KernelClient {
    * Parse the model response into a structured KernelResponse.
    */
   private parseResponse(content: string): KernelResponse {
+    // Log the raw response for debugging
+    this.logger.debug('Raw kernel model response:', { rawContent: content });
+
     // Extract JSON from response (model might include extra text)
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
